@@ -13,15 +13,15 @@ router.post('/createuser',[
     body('name').isLength({min: 3}).withMessage('Please enter a valid name'),
     body('password').isLength({min: 6}).withMessage('Please enter a valid password')
 ] , async (req, res) => {
-    
+    let success = false;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(422).json({ errors: errors.array() });
+        return res.status(422).json({success, errors: errors.array() });
     }
     try{
     let user = await User.findOne({email: req.body.email});
     if (user){
-        return res.status(400).json({errors: [{msg: 'User already exists'}]});
+        return res.status(400).json({success, errors: [{msg: 'User already exists'}]});
     }
     const salt = await bcrypt.genSalt(10);
     const secPass = await bcrypt.hash(req.body.password, salt);
@@ -31,7 +31,8 @@ router.post('/createuser',[
         password: secPass
     })
     const authtoken = jwt.sign({id: user.id}, JWT_SECRET);
-    res.json({authtoken});}
+    success = true;
+    res.json({success, authtoken});}
     catch(err){
         return res.status(500).send('Server error');
     }
@@ -51,6 +52,7 @@ router.post('/login',[
 
     const{email,password} = req.body;
     try {
+        let success=false;
         let user = await User.findOne({email});
         if(!user){
             return res.status(400).json({errors: [{msg: 'Invalid credentials'}]});
@@ -58,11 +60,13 @@ router.post('/login',[
 
         const isMatch = await bcrypt.compare(password, user.password);
         if(!isMatch){
-            return res.status(400).json({errors: [{msg: 'Invalid credentials'}]});
+            success=false;
+            return res.status(400).json({success, errors: [{msg: 'Invalid credentials'}]});
         }
         
         const authtoken = jwt.sign({id: user.id}, JWT_SECRET);
-        res.json({authtoken});
+        success = true;
+        res.json({success, authtoken});
 
     } catch (error) {
         return res.status(500).send('Server error');
